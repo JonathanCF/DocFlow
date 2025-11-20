@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { LogOut, FileText, Shield, User as UserIcon, Menu } from 'lucide-react';
 import { UserRole } from '../../types';
+import { Logo } from '../ui/Logo';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, logout } = useApp();
@@ -12,14 +13,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
       {/* Sidebar / Navbar */}
       <div className="w-full md:w-64 bg-white border-b md:border-r border-gray-200 flex flex-col">
-        <div className="p-6 flex items-center gap-2 text-primary-600 font-bold text-2xl border-b border-gray-100">
-          <FileText className="h-8 w-8" />
-          <span>DocFlow</span>
+        <div className="p-6 flex items-center justify-center md:justify-start border-b border-gray-100">
+          <Logo size="md" />
         </div>
 
         <div className="p-4">
           <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg mb-6">
-            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 shrink-0">
               <UserIcon size={20} />
             </div>
             <div className="overflow-hidden">

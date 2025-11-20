@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
-import { FileText, ShieldCheck, Briefcase, Loader2 } from 'lucide-react';
+import { ShieldCheck, Briefcase, Loader2 } from 'lucide-react';
+import { Logo } from '../components/ui/Logo';
 
 interface LoginProps {
   setView: (v: 'login' | 'register') => void;
@@ -23,12 +24,11 @@ export const Login: React.FC<LoginProps> = ({ setView }) => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
         
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-primary-100 text-primary-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
-            <FileText size={32} />
+        <div className="flex flex-col items-center mb-10">
+          <div className="scale-125 mb-2">
+            <Logo size="lg" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">DocFlow</h1>
-          <p className="text-gray-500 mt-2">Controle inteligente de documentos</p>
+          <p className="text-gray-500 mt-4 text-sm">Portal de Gestão de Documentos</p>
         </div>
 
         {error && (
