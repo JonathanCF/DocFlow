@@ -1,3 +1,8 @@
+/**
+ * Application Types
+ * Aligned with Prisma Schema definitions
+ */
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   SUPPLIER = 'SUPPLIER'
@@ -22,6 +27,7 @@ export interface Company {
   city: string;
   state: string;
   phone: string;
+  createdAt?: string;
 }
 
 export interface User {
@@ -29,25 +35,26 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  companyId?: string; // Only for suppliers
+  companyId?: string;
 }
 
 export interface Document {
   id: string;
-  userId: string; // The supplier who uploaded it
-  companyId: string; // To link to company
+  userId: string;
+  companyId: string;
   name: string;
   fileType: 'pdf' | 'jpg' | 'png';
-  fileUrl: string; // Mock URL
-  uploadedAt: string; // ISO Date
+  fileUrl: string;
+  uploadedAt: string; // ISO string sent from backend
   status: DocumentStatus;
   rejectionReason?: string;
 }
 
-// Mock Data Interface
+// DTOs (Data Transfer Objects) for creation
+export interface CreateCompanyDTO extends Omit<Company, 'id' | 'createdAt'> {}
+export interface CreateUserDTO extends Omit<User, 'id' | 'companyId' | 'role'> {}
+
 export interface AppState {
-  users: User[];
-  companies: Company[];
-  documents: Document[];
   currentUser: User | null;
+  isLoading: boolean;
 }

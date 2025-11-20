@@ -1,147 +1,140 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { User, Company, Document, UserRole, DocumentStatus, AppState } from '../types';
+import { User, Company, Document, UserRole, DocumentStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
+import { api } from '../services/api';
 
-interface AppContextType extends AppState {
-  login: (email: string, role: UserRole) => void;
+/**
+ * Context Definition
+ */
+interface AppContextType {
+  currentUser: User | null;
+  isLoading: boolean;
+  
+  // Auth Actions
+  login: (email: string, role: UserRole) => Promise<boolean>;
   logout: () => void;
-  registerCompany: (company: Omit<Company, 'id'>, user: Omit<User, 'id' | 'companyId' | 'role'>) => void;
-  uploadDocument: (file: File, name: string) => void;
-  updateDocumentStatus: (docId: string, status: DocumentStatus, reason?: string) => void;
-  getSupplierCompany: (userId: string) => Company | undefined;
-  getSupplierName: (userId: string) => string;
+  registerCompany: (company: CreateCompanyDTO, user: CreateUserDTO) => Promise<void>;
+  
+  // Data Fetching (Exposed for components to trigger refreshes)
+  refreshData: () => void;
+
+  // Data Getters (Cached in context for simplicity in this demo)
+  documents: Document[];
+  suppliers: { company: Company, responsible: User }[]; // Combined view for Admin
+  
+  // Operations
+  uploadDocument: (file: File, name: string) => Promise<void>;
+  updateDocumentStatus: (docId: string, status: DocumentStatus, reason?: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Mock Initial Data
-const INITIAL_COMPANIES: Company[] = [
-  {
-    id: 'c1',
-    cnpj: '12.345.678/0001-99',
-    fantasyName: 'Tech Supplies Ltda',
-    socialReason: 'Tech Supplies Comércio de Eletrônicos',
-    zipCode: '01001-000',
-    address: 'Av. Paulista',
-    number: '1000',
-    neighborhood: 'Bela Vista',
-    city: 'São Paulo',
-    state: 'SP',
-    phone: '(11) 99999-9999'
-  }
-];
-
-const INITIAL_USERS: User[] = [
-  { id: 'u1', name: 'Admin Master', email: 'admin@docflow.com', role: UserRole.ADMIN },
-  { id: 'u2', name: 'João Fornecedor', email: 'joao@tech.com', role: UserRole.SUPPLIER, companyId: 'c1' }
-];
-
-const INITIAL_DOCS: Document[] = [
-  {
-    id: 'd1',
-    userId: 'u2',
-    companyId: 'c1',
-    name: 'Contrato Social',
-    fileType: 'pdf',
-    fileUrl: '#',
-    uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
-    status: DocumentStatus.APPROVED
-  },
-  {
-    id: 'd2',
-    userId: 'u2',
-    companyId: 'c1',
-    name: 'Certidão Negativa',
-    fileType: 'pdf',
-    fileUrl: '#',
-    uploadedAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-    status: DocumentStatus.PENDING
-  }
-];
-
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AppState>({
-    users: INITIAL_USERS,
-    companies: INITIAL_COMPANIES,
-    documents: INITIAL_DOCS,
-    currentUser: null,
-  });
+  // State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [suppliers, setSuppliers] = useState<{ company: Company, responsible: User }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const login = (email: string, role: UserRole) => {
-    // Mock login logic - simpler for demo: finds first user with role
-    const user = state.users.find(u => u.role === role); 
-    if (user) {
-      setState(prev => ({ ...prev, currentUser: user }));
+  // Effect: Fetch data when user logs in or refresh is triggered
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!currentUser) return;
+
+      setIsLoading(true);
+      try {
+        if (currentUser.role === UserRole.ADMIN) {
+          // Admin sees all suppliers and documents
+          const [allDocs, allSuppliers] = await Promise.all([
+            api.document.listAll(),
+            api.company.listAll()
+          ]);
+          setDocuments(allDocs);
+          setSuppliers(allSuppliers);
+        } else {
+          // Supplier sees only their company documents
+          if (currentUser.companyId) {
+            const myDocs = await api.document.listByCompany(currentUser.companyId);
+            setDocuments(myDocs);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch data", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [currentUser, refreshTrigger]);
+
+  // --- Actions ---
+
+  const login = async (email: string, role: UserRole) => {
+    setIsLoading(true);
+    try {
+      const user = await api.auth.login(email, role);
+      if (user) {
+        setCurrentUser(user);
+        return true;
+      }
+      return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const logout = () => {
-    setState(prev => ({ ...prev, currentUser: null }));
+    setCurrentUser(null);
+    setDocuments([]);
+    setSuppliers([]);
   };
 
-  const registerCompany = (companyData: Omit<Company, 'id'>, userData: Omit<User, 'id' | 'companyId' | 'role'>) => {
-    const newCompanyId = `c${Date.now()}`;
-    const newUserId = `u${Date.now()}`;
-
-    const newCompany: Company = { ...companyData, id: newCompanyId };
-    const newUser: User = { ...userData, id: newUserId, role: UserRole.SUPPLIER, companyId: newCompanyId };
-
-    setState(prev => ({
-      ...prev,
-      companies: [...prev.companies, newCompany],
-      users: [...prev.users, newUser],
-      currentUser: newUser
-    }));
+  const registerCompany = async (companyData: CreateCompanyDTO, userData: CreateUserDTO) => {
+    setIsLoading(true);
+    try {
+      const newUser = await api.auth.registerSupplier(companyData, userData);
+      setCurrentUser(newUser);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const uploadDocument = (file: File, name: string) => {
-    if (!state.currentUser || state.currentUser.role !== UserRole.SUPPLIER) return;
-
-    const newDoc: Document = {
-      id: `d${Date.now()}`,
-      userId: state.currentUser.id,
-      companyId: state.currentUser.companyId!,
-      name: name,
-      fileType: file.name.split('.').pop()?.toLowerCase() as 'pdf' | 'jpg' | 'png' || 'pdf',
-      fileUrl: URL.createObjectURL(file),
-      uploadedAt: new Date().toISOString(),
-      status: DocumentStatus.PENDING
-    };
-
-    setState(prev => ({
-      ...prev,
-      documents: [newDoc, ...prev.documents]
-    }));
+  const uploadDocument = async (file: File, name: string) => {
+    if (!currentUser) return;
+    setIsLoading(true);
+    try {
+      await api.document.upload(file, name, currentUser);
+      setRefreshTrigger(prev => prev + 1); // Trigger reload
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const updateDocumentStatus = (docId: string, status: DocumentStatus, reason?: string) => {
-    setState(prev => ({
-      ...prev,
-      documents: prev.documents.map(doc => 
-        doc.id === docId ? { ...doc, status, rejectionReason: reason } : doc
-      )
-    }));
+  const updateDocumentStatus = async (docId: string, status: DocumentStatus, reason?: string) => {
+    setIsLoading(true);
+    try {
+      await api.document.updateStatus(docId, status, reason);
+      setRefreshTrigger(prev => prev + 1); // Trigger reload
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const getSupplierCompany = (userId: string) => {
-    const user = state.users.find(u => u.id === userId);
-    if (!user?.companyId) return undefined;
-    return state.companies.find(c => c.id === user.companyId);
-  };
-
-  const getSupplierName = (userId: string) => {
-    return state.users.find(u => u.id === userId)?.name || 'Desconhecido';
-  };
+  const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
   return (
     <AppContext.Provider value={{ 
-      ...state, 
+      currentUser, 
+      isLoading,
+      documents,
+      suppliers,
       login, 
       logout, 
       registerCompany, 
       uploadDocument, 
       updateDocumentStatus,
-      getSupplierCompany,
-      getSupplierName
+      refreshData
     }}>
       {children}
     </AppContext.Provider>
