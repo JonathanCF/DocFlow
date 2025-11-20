@@ -1,0 +1,176 @@
+import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { ArrowLeft, Building2, User as UserIcon } from 'lucide-react';
+
+export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> = ({ setView }) => {
+  const { registerCompany } = useApp();
+  
+  const [step, setStep] = useState(1);
+  
+  // User Data
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+
+  // Company Data
+  const [cnpj, setCnpj] = useState('');
+  const [fantasyName, setFantasyName] = useState('');
+  const [socialReason, setSocialReason] = useState('');
+  const [cep, setCep] = useState('');
+  const [address, setAddress] = useState('');
+  const [number, setNumber] = useState('');
+  const [complement, setComplement] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [phone, setPhone] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    registerCompany(
+      { cnpj, fantasyName, socialReason, zipCode: cep, address, number, complement, neighborhood, city, state, phone },
+      { name: userName, email: userEmail }
+    );
+    // Since registerCompany updates state and logs in, App.tsx will redirect
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <button 
+          onClick={() => setView('login')} 
+          className="flex items-center text-gray-500 hover:text-gray-900 mb-6"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar para Login
+        </button>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-primary-600 px-8 py-6">
+            <h2 className="text-2xl font-bold text-white">Cadastro de Fornecedor</h2>
+            <p className="text-primary-100 mt-1">Preencha os dados da empresa para começar.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-8">
+            
+            {/* Progress Indicator */}
+            <div className="flex items-center mb-8">
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${step >= 1 ? 'bg-primary-50 border-primary-500 text-primary-600' : 'border-gray-300 text-gray-300'}`}>
+                <UserIcon size={20} />
+              </div>
+              <div className={`flex-1 h-1 mx-4 ${step >= 2 ? 'bg-primary-500' : 'bg-gray-200'}`}></div>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${step >= 2 ? 'bg-primary-50 border-primary-500 text-primary-600' : 'border-gray-300 text-gray-400'}`}>
+                <Building2 size={20} />
+              </div>
+            </div>
+
+            {step === 1 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Dados do Usuário</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                  <input 
+                    required
+                    type="text" 
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                    placeholder="Seu nome"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">E-mail Corporativo</label>
+                  <input 
+                    required
+                    type="email" 
+                    value={userEmail}
+                    onChange={(e) => setUserEmail(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                    placeholder="seu@email.com"
+                  />
+                </div>
+                <div className="flex justify-end pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors"
+                  >
+                    Próximo
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Dados da Empresa</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
+                    <input required value={cnpj} onChange={e => setCnpj(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" placeholder="00.000.000/0000-00" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Razão Social</label>
+                    <input required value={socialReason} onChange={e => setSocialReason(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome Fantasia</label>
+                    <input required value={fantasyName} onChange={e => setFantasyName(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
+                    <input required value={cep} onChange={e => setCep(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                    <input required value={phone} onChange={e => setPhone(e.target.value)} type="tel" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                    <input required value={address} onChange={e => setAddress(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                    <input required value={number} onChange={e => setNumber(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                    <input value={complement} onChange={e => setComplement(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
+                    <input required value={neighborhood} onChange={e => setNeighborhood(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
+                    <input required value={city} onChange={e => setCity(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">UF</label>
+                    <input required value={state} onChange={e => setState(e.target.value)} type="text" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 outline-none" maxLength={2} />
+                  </div>
+                </div>
+
+                <div className="flex justify-between pt-6">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="px-6 py-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors shadow-lg shadow-primary-200"
+                  >
+                    Finalizar Cadastro
+                  </button>
+                </div>
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
