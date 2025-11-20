@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useLogin } from '../hooks/useAuth';
 import { UserRole } from '../types';
-import { ShieldCheck, Briefcase, Loader2, LogIn, Eye, EyeOff, Info } from 'lucide-react';
+import { ShieldCheck, Briefcase, Loader2, LogIn, Eye, EyeOff, Info, AlertCircle as AlertIcon } from 'lucide-react';
 import { Logo } from '../components/ui/Logo';
 
 interface LoginProps {
@@ -10,18 +9,15 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ setView }) => {
-  const { login, isLoading } = useApp();
+  const { mutate: login, isPending: isLoading } = useLogin();
   
-  // View State
   const [activeTab, setActiveTab] = useState<'supplier' | 'admin'>('supplier');
-  
-  // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async (e?: React.FormEvent) => {
+  const handleLogin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!email || !password) {
       setError('Preencha e-mail e senha.');
@@ -30,11 +26,12 @@ export const Login: React.FC<LoginProps> = ({ setView }) => {
     setError('');
     
     const role = activeTab === 'admin' ? UserRole.ADMIN : UserRole.SUPPLIER;
-    const result = await login(email, password, role);
     
-    if (!result.success) {
-      setError(result.error || 'Erro ao tentar login. Verifique suas credenciais.');
-    }
+    login({ email, password, role }, {
+      onError: (err) => {
+        setError(err.message || 'Erro ao tentar login.');
+      }
+    });
   };
 
   const prefillDemo = (type: 'supplier' | 'admin') => {
@@ -90,7 +87,7 @@ export const Login: React.FC<LoginProps> = ({ setView }) => {
         <div className="p-8 pt-6">
           {error && (
             <div className="mb-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-              <AlertCircle size={16} className="shrink-0" /> <span>{error}</span>
+              <AlertIcon size={16} className="shrink-0" /> <span>{error}</span>
             </div>
           )}
 
@@ -187,8 +184,3 @@ export const Login: React.FC<LoginProps> = ({ setView }) => {
     </div>
   );
 };
-
-// Helper for the error icon inside the component
-const AlertCircle = ({ size, className }: { size: number, className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-);

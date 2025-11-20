@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useRegister } from '../hooks/useAuth';
 import { ArrowLeft, Building2, User as UserIcon, CheckCircle, Lock } from 'lucide-react';
 
 export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> = ({ setView }) => {
-  const { registerCompany } = useApp();
+  const { mutate: register, isPending: isLoading } = useRegister();
   
   const [step, setStep] = useState(1);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -28,18 +27,24 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
   const [state, setState] = useState('');
   const [phone, setPhone] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       alert("As senhas não conferem.");
       return;
     }
 
-    await registerCompany(
-      { cnpj, fantasyName, socialReason, zipCode: cep, address, number, complement, neighborhood, city, state, phone },
-      { name: userName, email: userEmail, password }
-    );
-    setIsSuccess(true);
+    register({
+      company: { cnpj, fantasyName, socialReason, zipCode: cep, address, number, complement, neighborhood, city, state, phone },
+      user: { name: userName, email: userEmail, password }
+    }, {
+      onSuccess: () => {
+        setIsSuccess(true);
+      },
+      onError: (err) => {
+        alert(err.message);
+      }
+    });
   };
 
   if (isSuccess) {
@@ -230,9 +235,10 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors shadow-lg shadow-primary-200"
+                    disabled={isLoading}
+                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors shadow-lg shadow-primary-200 disabled:opacity-50"
                   >
-                    Finalizar Cadastro
+                    {isLoading ? 'Enviando...' : 'Finalizar Cadastro'}
                   </button>
                 </div>
               </div>
@@ -240,6 +246,5 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
           </form>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };

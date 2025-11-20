@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider, useAuthContext } from './context/AuthContext';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -8,7 +8,7 @@ import { AdminDashboard } from './pages/admin/Dashboard';
 import { UserRole } from './types';
 
 const MainContent: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuthContext();
   const [view, setView] = useState<'login' | 'register'>('login');
 
   // If not logged in, show Auth Pages
@@ -27,9 +27,9 @@ const MainContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AppProvider>
+    <AuthProvider>
       <MainContent />
-    </AppProvider>
+    </AuthProvider>
   );
 };
 

@@ -1,11 +1,11 @@
 import React from 'react';
-import { useApp } from '../../context/AppContext';
+import { useAuthContext } from '../../context/AuthContext';
 import { LogOut, FileText, Shield, User as UserIcon, Menu } from 'lucide-react';
 import { UserRole } from '../../types';
 import { Logo } from '../ui/Logo';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, logout } = useApp();
+  const { currentUser, logoutUser } = useAuthContext();
 
   if (!currentUser) return <>{children}</>;
 
@@ -48,7 +48,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         <div className="mt-auto p-4 border-t border-gray-100">
           <button 
-            onClick={logout} 
+            onClick={logoutUser} 
             className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
           >
             <LogOut size={18} />

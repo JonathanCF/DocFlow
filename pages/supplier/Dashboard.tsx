@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
-import { UploadCloud, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { useAuthContext } from '../../context/AuthContext';
+import { useDocuments, useUploadDocument } from '../../hooks/useDocuments';
+import { UploadCloud, FileText, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { DocumentStatus } from '../../types';
 
 export const SupplierDashboard: React.FC = () => {
-  const { documents, uploadDocument, isLoading } = useApp();
+  const { currentUser } = useAuthContext();
+  const { data: documents = [], isLoading: isLoadingDocs } = useDocuments(currentUser);
+  const { mutate: upload, isPending: isUploading } = useUploadDocument();
+
   const [docName, setDocName] = useState('');
   const [file, setFile] = useState<File | null>(null);
 
@@ -13,17 +17,18 @@ export const SupplierDashboard: React.FC = () => {
     if (e.target.files?.[0]) setFile(e.target.files[0]);
   };
 
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !docName) return;
+    if (!file || !docName || !currentUser) return;
 
-    await uploadDocument(file, docName);
-    setFile(null);
-    setDocName('');
-    
-    // Reset input
-    const input = document.getElementById('file-upload') as HTMLInputElement;
-    if (input) input.value = '';
+    upload({ file, name: docName, user: currentUser }, {
+      onSuccess: () => {
+        setFile(null);
+        setDocName('');
+        const input = document.getElementById('file-upload') as HTMLInputElement;
+        if (input) input.value = '';
+      }
+    });
   };
 
   return (
@@ -49,7 +54,7 @@ export const SupplierDashboard: React.FC = () => {
               placeholder="Ex: Contrato Social" 
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
               required
-              disabled={isLoading}
+              disabled={isUploading}
             />
           </div>
           <div className="md:col-span-5">
@@ -61,16 +66,16 @@ export const SupplierDashboard: React.FC = () => {
               onChange={handleFileChange}
               className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
               required
-              disabled={isLoading}
+              disabled={isUploading}
             />
           </div>
           <div className="md:col-span-2">
             <button 
               type="submit" 
-              disabled={isLoading || !file}
-              className="w-full py-2 px-4 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-200/50"
+              disabled={isUploading || !file}
+              className="w-full py-2 px-4 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-200/50 flex items-center justify-center"
             >
-              {isLoading ? 'Enviando...' : 'Enviar'}
+              {isUploading ? <Loader2 className="animate-spin" size={18} /> : 'Enviar'}
             </button>
           </div>
         </form>
@@ -93,7 +98,13 @@ export const SupplierDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {documents.length === 0 ? (
+              {isLoadingDocs ? (
+                 <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                       <div className="flex justify-center"><Loader2 className="animate-spin text-primary-500" /></div>
+                    </td>
+                 </tr>
+              ) : documents.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
                     Nenhum documento enviado ainda.

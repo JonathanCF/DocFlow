@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useAuthContext } from '../../context/AuthContext';
+import { useSuppliers, useUpdateCompanyStatus } from '../../hooks/useSuppliers';
+import { useDocuments, useUpdateDocumentStatus } from '../../hooks/useDocuments';
 import { Badge } from '../../components/ui/Badge';
-import { DocumentStatus, Document, Company, User, CompanyStatus } from '../../types';
+import { DocumentStatus, Document, CompanyStatus } from '../../types';
 import { Search, Eye, Check, X, FileText, Download, Building2, User as UserIcon, AlertCircle, Users, UserCheck, Clock, Loader2 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
-  const { suppliers, documents, updateDocumentStatus, updateCompanyStatus } = useApp();
+  const { currentUser } = useAuthContext();
+  
+  // Queries
+  const { data: suppliers = [] } = useSuppliers();
+  const { data: documents = [] } = useDocuments(currentUser);
+  
+  // Mutations
+  const { mutate: updateCompany, isPending: isUpdatingCompany } = useUpdateCompanyStatus();
+  const { mutate: updateDoc, isPending: isUpdatingDoc } = useUpdateDocumentStatus();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
   
   // Rejection State
   const [rejectingDoc, setRejectingDoc] = useState<Document | null>(null);
@@ -50,32 +59,22 @@ export const AdminDashboard: React.FC = () => {
 
   // --- Handlers ---
 
-  const handleApprove = async (doc: Document) => {
+  const handleApprove = (doc: Document) => {
     if (window.confirm(`Aprovar documento "${doc.name}"?`)) {
-      await updateDocumentStatus(doc.id, DocumentStatus.APPROVED);
+      updateDoc({ id: doc.id, status: DocumentStatus.APPROVED });
     }
   };
 
-  const handleCompanyAuthorization = async (companyId: string, status: CompanyStatus) => {
-    // Only ask for confirmation if REJECTING/BLOCKING. Approving is usually safe and positive.
+  const handleCompanyAuthorization = (companyId: string, status: CompanyStatus) => {
     if (status === CompanyStatus.REJECTED && !window.confirm(`Deseja realmente bloquear o acesso desta empresa?`)) {
       return;
     }
-
-    setIsUpdating(true);
-    try {
-      await updateCompanyStatus(companyId, status);
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao atualizar status da empresa.");
-    } finally {
-      setIsUpdating(false);
-    }
+    updateCompany({ id: companyId, status });
   };
 
-  const handleRejectSubmit = async () => {
+  const handleRejectSubmit = () => {
     if (rejectingDoc && rejectionReason.trim()) {
-      await updateDocumentStatus(rejectingDoc.id, DocumentStatus.REJECTED, rejectionReason);
+      updateDoc({ id: rejectingDoc.id, status: DocumentStatus.REJECTED, reason: rejectionReason });
       setRejectingDoc(null);
       setRejectionReason('');
     }
@@ -183,7 +182,7 @@ export const AdminDashboard: React.FC = () => {
                           <div className="flex gap-2">
                             <button 
                               title="Autorizar Acesso"
-                              disabled={isUpdating}
+                              disabled={isUpdatingCompany}
                               onClick={(e) => { e.stopPropagation(); handleCompanyAuthorization(company.id, CompanyStatus.ACTIVE); }}
                               className="p-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 hover:shadow-md transition-all disabled:opacity-50"
                             >
@@ -191,7 +190,7 @@ export const AdminDashboard: React.FC = () => {
                             </button>
                             <button 
                               title="Recusar Acesso"
-                              disabled={isUpdating}
+                              disabled={isUpdatingCompany}
                               onClick={(e) => { e.stopPropagation(); handleCompanyAuthorization(company.id, CompanyStatus.REJECTED); }}
                               className="p-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 hover:shadow-md transition-all disabled:opacity-50"
                             >
@@ -275,10 +274,10 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                   <button 
                     onClick={() => handleCompanyAuthorization(selectedData.company.id, CompanyStatus.ACTIVE)}
-                    disabled={isUpdating}
+                    disabled={isUpdatingCompany}
                     className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center gap-2"
                   >
-                    {isUpdating ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                    {isUpdatingCompany ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
                     Autorizar Acesso
                   </button>
                 </div>
@@ -343,6 +342,7 @@ export const AdminDashboard: React.FC = () => {
                                 <>
                                   <button 
                                     onClick={() => handleApprove(doc)}
+                                    disabled={isUpdatingDoc}
                                     className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
                                     title="Aprovar"
                                   >
@@ -350,6 +350,7 @@ export const AdminDashboard: React.FC = () => {
                                   </button>
                                   <button 
                                     onClick={() => { setRejectingDoc(doc); setRejectionReason(''); }}
+                                    disabled={isUpdatingDoc}
                                     className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                     title="Reprovar"
                                   >
@@ -394,9 +395,10 @@ export const AdminDashboard: React.FC = () => {
               </button>
               <button 
                 onClick={handleRejectSubmit}
-                disabled={!rejectionReason.trim()}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!rejectionReason.trim() || isUpdatingDoc}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
+                {isUpdatingDoc && <Loader2 className="animate-spin" size={16} />}
                 Confirmar Reprovação
               </button>
             </div>

@@ -1,29 +1,28 @@
-
 import { User, Company, Document, UserRole, DocumentStatus, CompanyStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
 
 /**
- * MOCK BACKEND SERVICE
+ * SERVICE LAYER - PREPARED FOR AXIOS
  * 
- * In a real Next.js app, this would be replaced by `fetch` calls to `/api/...`
- * accessing the Prisma Client.
+ * Quando você tiver um backend real, você irá substituir a lógica interna
+ * dessas funções por chamadas `axios`.
  * 
- * Currently uses LocalStorage to simulate a real database so the app is functional
- * without a running Node.js server in the browser preview.
+ * Exemplo:
+ * import axios from 'axios';
+ * const apiClient = axios.create({ baseURL: 'http://localhost:3000/api' });
  */
 
-const DELAY_MS = 600; // Simulate network latency
-
-// Keys for LocalStorage
+// --- MOCK DATABASE HELPERS (Para funcionar sem Backend) ---
+const DELAY_MS = 600;
 const DB_KEYS = {
   USERS: 'docflow_users',
   COMPANIES: 'docflow_companies',
   DOCUMENTS: 'docflow_documents'
 };
-
-// Helper to simulate async DB calls
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const getDb = <T>(key: string): T[] => JSON.parse(localStorage.getItem(key) || '[]');
+const setDb = (key: string, data: any[]) => localStorage.setItem(key, JSON.stringify(data));
 
-// Initialize DB if empty (Seed Admin)
+// Inicialização do Banco Mock
 const initializeDB = () => {
   if (!localStorage.getItem(DB_KEYS.USERS)) {
     const admin: User = {
@@ -31,10 +30,9 @@ const initializeDB = () => {
       name: 'Admin Master',
       email: 'admin@docflow.com',
       role: UserRole.ADMIN,
-      password: '123456' // Default password
+      password: '123456'
     };
     
-    // Create demo supplier user for existing company
     const demoUser: User = {
       id: 'supplier-demo-uuid',
       name: 'João Silva',
@@ -44,7 +42,6 @@ const initializeDB = () => {
       password: '123456'
     };
 
-    // Create demo company
     const demoCompany: Company = {
         id: 'demo-company-id',
         cnpj: '12.345.678/0001-99',
@@ -61,174 +58,135 @@ const initializeDB = () => {
         createdAt: new Date().toISOString()
     };
 
-    localStorage.setItem(DB_KEYS.USERS, JSON.stringify([admin, demoUser]));
-    localStorage.setItem(DB_KEYS.COMPANIES, JSON.stringify([demoCompany]));
-    localStorage.setItem(DB_KEYS.DOCUMENTS, JSON.stringify([]));
+    setDb(DB_KEYS.USERS, [admin, demoUser]);
+    setDb(DB_KEYS.COMPANIES, [demoCompany]);
+    setDb(DB_KEYS.DOCUMENTS, []);
+  }
+};
+initializeDB();
+
+// --- ENDPOINTS ---
+
+export const authService = {
+  login: async (email: string, password: string, role: UserRole) => {
+    // AXIOS: return apiClient.post('/auth/login', { email, password, role });
+    await delay(DELAY_MS);
+    const users = getDb<User>(DB_KEYS.USERS);
+    
+    const user = users.find(u => u.email === email && u.role === role);
+    if (!user) throw new Error('Usuário não encontrado.');
+    if (user.password && user.password !== password) throw new Error('Senha incorreta.');
+
+    if (user.role === UserRole.SUPPLIER && user.companyId) {
+      const companies = getDb<Company>(DB_KEYS.COMPANIES);
+      const company = companies.find(c => c.id === user.companyId);
+      if (company?.status === CompanyStatus.PENDING) throw new Error('Cadastro em análise.');
+      if (company?.status === CompanyStatus.REJECTED) throw new Error('Cadastro recusado.');
+    }
+    return user;
+  },
+
+  register: async (payload: { company: CreateCompanyDTO, user: CreateUserDTO }) => {
+    // AXIOS: return apiClient.post('/auth/register', payload);
+    await delay(DELAY_MS);
+    const companies = getDb<Company>(DB_KEYS.COMPANIES);
+    const users = getDb<User>(DB_KEYS.USERS);
+
+    if (users.some(u => u.email === payload.user.email)) throw new Error("Email já cadastrado.");
+
+    const newCompany: Company = {
+      ...payload.company,
+      id: crypto.randomUUID(),
+      status: CompanyStatus.PENDING,
+      createdAt: new Date().toISOString()
+    };
+
+    const newUser: User = {
+      ...payload.user,
+      id: crypto.randomUUID(),
+      role: UserRole.SUPPLIER,
+      companyId: newCompany.id,
+      password: payload.user.password
+    };
+
+    setDb(DB_KEYS.COMPANIES, [...companies, newCompany]);
+    setDb(DB_KEYS.USERS, [...users, newUser]);
+    return newUser;
   }
 };
 
-initializeDB();
-
-// --- API METHODS ---
-
-export const api = {
-  
-  auth: {
-    // Returns object with user if successful, or error message string if failed
-    login: async (email: string, password: string, role: UserRole): Promise<{ user: User | null, error?: string }> => {
-      await delay(DELAY_MS);
-      const users: User[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-      
-      // 1. Find User by email and role
-      const user = users.find(u => u.email === email && u.role === role);
-      
-      if (!user) {
-        return { user: null, error: 'Usuário não encontrado.' };
-      }
-
-      // 2. Verify Password (In real app: bcrypt.compare)
-      if (user.password && user.password !== password) {
-        return { user: null, error: 'Senha incorreta.' };
-      }
-
-      // 3. If Admin, bypass company check
-      if (user.role === UserRole.ADMIN) {
-        return { user };
-      }
-
-      // 4. If Supplier, check Company Status
-      if (user.companyId) {
-        const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
-        const company = companies.find(c => c.id === user.companyId);
-        
-        if (company) {
-          if (company.status === CompanyStatus.PENDING) {
-            return { user: null, error: 'Seu cadastro está em análise. Aguarde a liberação do administrador.' };
-          }
-          if (company.status === CompanyStatus.REJECTED) {
-            return { user: null, error: 'Seu cadastro foi recusado. Entre em contato com o suporte.' };
-          }
-        }
-      }
-
-      return { user };
-    },
-
-    registerSupplier: async (companyData: CreateCompanyDTO, userData: CreateUserDTO): Promise<User> => {
-      await delay(DELAY_MS);
-      
-      const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
-      const users: User[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-
-      // Check if email already exists
-      if (users.some(u => u.email === userData.email)) {
-        throw new Error("Email já cadastrado.");
-      }
-
-      // 1. Create Company (Simulating Prisma.company.create)
-      const newCompany: Company = {
-        ...companyData,
-        id: crypto.randomUUID(),
-        status: CompanyStatus.PENDING, // Default to PENDING
-        createdAt: new Date().toISOString()
-      };
-
-      // 2. Create User (Simulating Prisma.user.create)
-      const newUser: User = {
-        ...userData,
-        id: crypto.randomUUID(),
-        role: UserRole.SUPPLIER,
-        companyId: newCompany.id,
-        password: userData.password // Storing password
-      };
-
-      // Save to "DB"
-      companies.push(newCompany);
-      users.push(newUser);
-      
-      localStorage.setItem(DB_KEYS.COMPANIES, JSON.stringify(companies));
-      localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
-
-      return newUser;
-    }
+export const documentService = {
+  getAll: async () => {
+    // AXIOS: return apiClient.get('/documents');
+    await delay(DELAY_MS / 2);
+    return getDb<Document>(DB_KEYS.DOCUMENTS).sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
   },
 
-  document: {
-    upload: async (file: File, name: string, user: User): Promise<Document> => {
-      await delay(DELAY_MS);
-      if (!user.companyId) throw new Error("User has no company");
-
-      const docs: Document[] = JSON.parse(localStorage.getItem(DB_KEYS.DOCUMENTS) || '[]');
-
-      const newDoc: Document = {
-        id: crypto.randomUUID(),
-        userId: user.id,
-        companyId: user.companyId,
-        name: name,
-        fileType: file.name.split('.').pop()?.toLowerCase() as any || 'pdf',
-        fileUrl: URL.createObjectURL(file), // In a real app, this would be an S3/Blob URL
-        uploadedAt: new Date().toISOString(),
-        status: DocumentStatus.PENDING
-      };
-
-      docs.push(newDoc);
-      localStorage.setItem(DB_KEYS.DOCUMENTS, JSON.stringify(docs));
-      
-      return newDoc;
-    },
-
-    listByCompany: async (companyId: string): Promise<Document[]> => {
-      await delay(DELAY_MS / 2); // Faster read
-      const docs: Document[] = JSON.parse(localStorage.getItem(DB_KEYS.DOCUMENTS) || '[]');
-      return docs.filter(d => d.companyId === companyId).sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-    },
-
-    listAll: async (): Promise<Document[]> => {
-      await delay(DELAY_MS / 2);
-      const docs: Document[] = JSON.parse(localStorage.getItem(DB_KEYS.DOCUMENTS) || '[]');
-      return docs.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-    },
-
-    updateStatus: async (docId: string, status: DocumentStatus, reason?: string): Promise<Document> => {
-      await delay(DELAY_MS);
-      const docs: Document[] = JSON.parse(localStorage.getItem(DB_KEYS.DOCUMENTS) || '[]');
-      const index = docs.findIndex(d => d.id === docId);
-      
-      if (index === -1) throw new Error("Document not found");
-
-      docs[index] = { ...docs[index], status, rejectionReason: reason };
-      localStorage.setItem(DB_KEYS.DOCUMENTS, JSON.stringify(docs));
-      
-      return docs[index];
-    }
+  getByCompany: async (companyId: string) => {
+    // AXIOS: return apiClient.get(`/documents?companyId=${companyId}`);
+    await delay(DELAY_MS / 2);
+    return getDb<Document>(DB_KEYS.DOCUMENTS)
+      .filter(d => d.companyId === companyId)
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
   },
 
-  company: {
-    getById: async (id: string): Promise<Company | undefined> => {
-      const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
-      return companies.find(c => c.id === id);
-    },
+  upload: async (file: File, name: string, user: User) => {
+    // AXIOS: 
+    // const formData = new FormData();
+    // formData.append('file', file);
+    // formData.append('name', name);
+    // return apiClient.post('/documents', formData);
     
-    listAll: async (): Promise<{ company: Company, responsible: User }[]> => {
-      await delay(DELAY_MS);
-      const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
-      const users: User[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+    await delay(DELAY_MS);
+    if (!user.companyId) throw new Error("User has no company");
+    const docs = getDb<Document>(DB_KEYS.DOCUMENTS);
+    const newDoc: Document = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      companyId: user.companyId,
+      name: name,
+      fileType: file.name.split('.').pop()?.toLowerCase() as any || 'pdf',
+      fileUrl: URL.createObjectURL(file),
+      uploadedAt: new Date().toISOString(),
+      status: DocumentStatus.PENDING
+    };
+    setDb(DB_KEYS.DOCUMENTS, [...docs, newDoc]);
+    return newDoc;
+  },
 
-      return companies.map(comp => {
-        const responsible = users.find(u => u.companyId === comp.id) || users[0]; // Fallback
-        return { company: comp, responsible };
-      });
-    },
+  updateStatus: async (id: string, status: DocumentStatus, reason?: string) => {
+    // AXIOS: return apiClient.patch(`/documents/${id}/status`, { status, reason });
+    await delay(DELAY_MS);
+    const docs = getDb<Document>(DB_KEYS.DOCUMENTS);
+    const index = docs.findIndex(d => d.id === id);
+    if (index === -1) throw new Error("Document not found");
+    
+    docs[index] = { ...docs[index], status, rejectionReason: reason };
+    setDb(DB_KEYS.DOCUMENTS, docs);
+    return docs[index];
+  }
+};
 
-    updateStatus: async (companyId: string, status: CompanyStatus): Promise<void> => {
-      await delay(DELAY_MS);
-      const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
-      const index = companies.findIndex(c => c.id === companyId);
-      
-      if (index !== -1) {
-        companies[index].status = status;
-        localStorage.setItem(DB_KEYS.COMPANIES, JSON.stringify(companies));
-      }
+export const companyService = {
+  getAllWithResponsible: async () => {
+    // AXIOS: return apiClient.get('/companies/details');
+    await delay(DELAY_MS);
+    const companies = getDb<Company>(DB_KEYS.COMPANIES);
+    const users = getDb<User>(DB_KEYS.USERS);
+    return companies.map(comp => ({
+      company: comp,
+      responsible: users.find(u => u.companyId === comp.id) || users[0]
+    }));
+  },
+
+  updateStatus: async (id: string, status: CompanyStatus) => {
+    // AXIOS: return apiClient.patch(`/companies/${id}/status`, { status });
+    await delay(DELAY_MS);
+    const companies = getDb<Company>(DB_KEYS.COMPANIES);
+    const index = companies.findIndex(c => c.id === id);
+    if (index !== -1) {
+      companies[index].status = status;
+      setDb(DB_KEYS.COMPANIES, companies);
     }
   }
 };

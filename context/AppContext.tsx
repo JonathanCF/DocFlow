@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, Company, Document, UserRole, DocumentStatus, CompanyStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
-import { api } from '../services/api';
+import { authService, documentService, companyService } from '../services/api';
 
 /**
  * Context Definition
@@ -48,15 +47,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (currentUser.role === UserRole.ADMIN) {
           // Admin sees all suppliers and documents
           const [allDocs, allSuppliers] = await Promise.all([
-            api.document.listAll(),
-            api.company.listAll()
+            documentService.getAll(),
+            companyService.getAllWithResponsible()
           ]);
           setDocuments(allDocs);
           setSuppliers(allSuppliers);
         } else {
           // Supplier sees only their company documents
           if (currentUser.companyId) {
-            const myDocs = await api.document.listByCompany(currentUser.companyId);
+            const myDocs = await documentService.getByCompany(currentUser.companyId);
             setDocuments(myDocs);
           }
         }
@@ -75,12 +74,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const login = async (email: string, password: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      const response = await api.auth.login(email, password, role);
-      if (response.user) {
-        setCurrentUser(response.user);
+      const user = await authService.login(email, password, role);
+      if (user) {
+        setCurrentUser(user);
         return { success: true };
       }
-      return { success: false, error: response.error };
+      return { success: false, error: 'Authentication failed' };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Login failed' };
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +96,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const registerCompany = async (companyData: CreateCompanyDTO, userData: CreateUserDTO) => {
     setIsLoading(true);
     try {
-      const newUser = await api.auth.registerSupplier(companyData, userData);
+      await authService.register({ company: companyData, user: userData });
       // NOTE: We do NOT automatically log them in anymore, as they are PENDING
       // setCurrentUser(newUser); 
     } finally {
@@ -107,7 +108,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!currentUser) return;
     setIsLoading(true);
     try {
-      await api.document.upload(file, name, currentUser);
+      await documentService.upload(file, name, currentUser);
       setRefreshTrigger(prev => prev + 1); // Trigger reload
     } finally {
       setIsLoading(false);
@@ -117,7 +118,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateDocumentStatus = async (docId: string, status: DocumentStatus, reason?: string) => {
     setIsLoading(true);
     try {
-      await api.document.updateStatus(docId, status, reason);
+      await documentService.updateStatus(docId, status, reason);
       setRefreshTrigger(prev => prev + 1); // Trigger reload
     } finally {
       setIsLoading(false);
@@ -127,7 +128,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCompanyStatus = async (companyId: string, status: CompanyStatus) => {
     setIsLoading(true);
     try {
-      await api.company.updateStatus(companyId, status);
+      await companyService.updateStatus(companyId, status);
       setRefreshTrigger(prev => prev + 1); // Trigger reload
     } finally {
       setIsLoading(false);
