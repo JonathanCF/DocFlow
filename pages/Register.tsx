@@ -246,5 +246,6 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
           </form>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
