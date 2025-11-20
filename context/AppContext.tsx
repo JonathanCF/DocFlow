@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { User, Company, Document, UserRole, DocumentStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
+import { User, Company, Document, UserRole, DocumentStatus, CompanyStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
 import { api } from '../services/api';
 
 /**
@@ -10,7 +10,7 @@ interface AppContextType {
   isLoading: boolean;
   
   // Auth Actions
-  login: (email: string, role: UserRole) => Promise<boolean>;
+  login: (email: string, role: UserRole) => Promise<{ success: boolean, error?: string }>;
   logout: () => void;
   registerCompany: (company: CreateCompanyDTO, user: CreateUserDTO) => Promise<void>;
   
@@ -24,6 +24,7 @@ interface AppContextType {
   // Operations
   uploadDocument: (file: File, name: string) => Promise<void>;
   updateDocumentStatus: (docId: string, status: DocumentStatus, reason?: string) => Promise<void>;
+  updateCompanyStatus: (companyId: string, status: CompanyStatus) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -73,12 +74,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const login = async (email: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      const user = await api.auth.login(email, role);
-      if (user) {
-        setCurrentUser(user);
-        return true;
+      const response = await api.auth.login(email, role);
+      if (response.user) {
+        setCurrentUser(response.user);
+        return { success: true };
       }
-      return false;
+      return { success: false, error: response.error };
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +95,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsLoading(true);
     try {
       const newUser = await api.auth.registerSupplier(companyData, userData);
-      setCurrentUser(newUser);
+      // NOTE: We do NOT automatically log them in anymore, as they are PENDING
+      // setCurrentUser(newUser); 
     } finally {
       setIsLoading(false);
     }
@@ -121,6 +123,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const updateCompanyStatus = async (companyId: string, status: CompanyStatus) => {
+    setIsLoading(true);
+    try {
+      await api.company.updateStatus(companyId, status);
+      setRefreshTrigger(prev => prev + 1); // Trigger reload
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
   return (
@@ -134,6 +146,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       registerCompany, 
       uploadDocument, 
       updateDocumentStatus,
+      updateCompanyStatus,
       refreshData
     }}>
       {children}

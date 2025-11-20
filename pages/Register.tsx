@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ArrowLeft, Building2, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, Building2, User as UserIcon, CheckCircle } from 'lucide-react';
 
 export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> = ({ setView }) => {
   const { registerCompany } = useApp();
   
   const [step, setStep] = useState(1);
+  const [isSuccess, setIsSuccess] = useState(false);
   
   // User Data
   const [userName, setUserName] = useState('');
@@ -24,14 +25,36 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
   const [state, setState] = useState('');
   const [phone, setPhone] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    registerCompany(
+    await registerCompany(
       { cnpj, fantasyName, socialReason, zipCode: cep, address, number, complement, neighborhood, city, state, phone },
       { name: userName, email: userEmail }
     );
-    // Since registerCompany updates state and logs in, App.tsx will redirect
+    setIsSuccess(true);
   };
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center animate-in zoom-in-95">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Cadastro Realizado!</h2>
+          <p className="text-gray-600 mb-8">
+            Seus dados foram enviados para análise. Você receberá a confirmação assim que o administrador liberar seu acesso.
+          </p>
+          <button
+            onClick={() => setView('login')}
+            className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors"
+          >
+            Voltar para Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

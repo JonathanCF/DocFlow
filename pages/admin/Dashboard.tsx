@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../../components/ui/Badge';
-import { DocumentStatus, Document, Company, User } from '../../types';
-import { Search, Eye, Check, X, FileText, Download, Building2, User as UserIcon, AlertCircle } from 'lucide-react';
+import { DocumentStatus, Document, Company, User, CompanyStatus } from '../../types';
+import { Search, Eye, Check, X, FileText, Download, Building2, User as UserIcon, AlertCircle, Users, UserCheck, Clock } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
-  const { suppliers, documents, updateDocumentStatus } = useApp();
+  const { suppliers, documents, updateDocumentStatus, updateCompanyStatus } = useApp();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
@@ -16,7 +16,12 @@ export const AdminDashboard: React.FC = () => {
 
   // --- Derived State & Helpers ---
 
-  // 1. Filter Suppliers
+  // 1. Statistics
+  const pendingCompanies = suppliers.filter(s => s.company.status === CompanyStatus.PENDING).length;
+  const activeCompanies = suppliers.filter(s => s.company.status === CompanyStatus.ACTIVE).length;
+  const totalCompanies = suppliers.length;
+
+  // 2. Filter Suppliers
   const filteredSuppliers = suppliers.filter(({ company, responsible }) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -26,7 +31,7 @@ export const AdminDashboard: React.FC = () => {
     );
   });
 
-  // 2. Get Data for Selected Modal
+  // 3. Get Data for Selected Modal
   const selectedData = selectedSupplierId 
     ? suppliers.find(s => s.company.id === selectedSupplierId)
     : null;
@@ -35,8 +40,8 @@ export const AdminDashboard: React.FC = () => {
     ? documents.filter(d => d.companyId === selectedSupplierId)
     : [];
 
-  // 3. Calculate Status
-  const getStatusStats = (companyId: string) => {
+  // 4. Calculate Document Status for Table
+  const getDocStats = (companyId: string) => {
     const docs = documents.filter(d => d.companyId === companyId);
     const pending = docs.filter(d => d.status === DocumentStatus.PENDING).length;
     return { total: docs.length, pending, hasPending: pending > 0 };
@@ -50,6 +55,13 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleCompanyAuthorization = async (companyId: string, status: CompanyStatus) => {
+    const action = status === CompanyStatus.ACTIVE ? 'Autorizar' : 'Bloquear';
+    if (window.confirm(`Deseja realmente ${action} o acesso desta empresa?`)) {
+      await updateCompanyStatus(companyId, status);
+    }
+  };
+
   const handleRejectSubmit = async () => {
     if (rejectingDoc && rejectionReason.trim()) {
       await updateDocumentStatus(rejectingDoc.id, DocumentStatus.REJECTED, rejectionReason);
@@ -59,15 +71,44 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500">
       
       {/* Header */}
-      <header className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de Fornecedores</h1>
-          <p className="text-gray-500">Visualize empresas e modere os documentos enviados.</p>
-        </div>
+      <header>
+        <h1 className="text-2xl font-bold text-gray-900">Painel Administrativo</h1>
+        <p className="text-gray-500">Gerencie o acesso das empresas e modere documentos.</p>
       </header>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
+            <Users size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Total de Empresas</p>
+            <p className="text-2xl font-bold text-gray-900">{totalCompanies}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-orange-100 text-orange-600 rounded-lg">
+            <Clock size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Pendentes de Acesso</p>
+            <p className="text-2xl font-bold text-gray-900">{pendingCompanies}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-green-100 text-green-600 rounded-lg">
+            <UserCheck size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Cadastros Ativos</p>
+            <p className="text-2xl font-bold text-gray-900">{activeCompanies}</p>
+          </div>
+        </div>
+      </div>
 
       {/* Filter */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
@@ -90,8 +131,8 @@ export const AdminDashboard: React.FC = () => {
             <tr>
               <th className="px-6 py-4">Empresa</th>
               <th className="px-6 py-4">Responsável</th>
-              <th className="px-6 py-4">Status Geral</th>
-              <th className="px-6 py-4">Documentos</th>
+              <th className="px-6 py-4">Status do Cadastro</th>
+              <th className="px-6 py-4">Docs Pendentes</th>
               <th className="px-6 py-4 text-right">Ações</th>
             </tr>
           </thead>
@@ -104,9 +145,9 @@ export const AdminDashboard: React.FC = () => {
               </tr>
             ) : (
               filteredSuppliers.map(({ company, responsible }) => {
-                const stats = getStatusStats(company.id);
+                const docStats = getDocStats(company.id);
                 return (
-                  <tr key={company.id} className="hover:bg-gray-50 transition-colors group">
+                  <tr key={company.id} className={`hover:bg-gray-50 transition-colors group ${company.status === CompanyStatus.PENDING ? 'bg-orange-50/30' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
@@ -125,19 +166,37 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {stats.hasPending ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-                          Pendente Análise
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                           Regular
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Badge status={company.status} context="company" />
+                        {company.status === CompanyStatus.PENDING && (
+                          <div className="flex gap-1">
+                            <button 
+                              title="Autorizar Acesso"
+                              onClick={(e) => { e.stopPropagation(); handleCompanyAuthorization(company.id, CompanyStatus.ACTIVE); }}
+                              className="p-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button 
+                              title="Recusar Acesso"
+                              onClick={(e) => { e.stopPropagation(); handleCompanyAuthorization(company.id, CompanyStatus.REJECTED); }}
+                              className="p-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-gray-600">
-                      <span className="font-semibold text-gray-900">{stats.total}</span> enviados
+                      {docStats.hasPending ? (
+                         <span className="text-yellow-600 font-medium flex items-center gap-1">
+                           <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                           {docStats.pending} pendentes
+                         </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
@@ -145,7 +204,7 @@ export const AdminDashboard: React.FC = () => {
                         className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 hover:border-primary-500 hover:text-primary-600 rounded-lg text-sm font-medium text-gray-700 transition-all shadow-sm"
                       >
                         <Eye size={16} />
-                        Visualizar
+                        Detalhes
                       </button>
                     </td>
                   </tr>
@@ -170,10 +229,15 @@ export const AdminDashboard: React.FC = () => {
                     <Building2 size={24} />
                  </div>
                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedData.company.fantasyName}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-gray-900">{selectedData.company.fantasyName}</h2>
+                      <Badge status={selectedData.company.status} context="company" />
+                    </div>
                     <p className="text-sm text-gray-500 mt-1">{selectedData.company.socialReason}</p>
                     <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
                       <span>CNPJ: {selectedData.company.cnpj}</span>
+                      <span>•</span>
+                      <span>{selectedData.company.city} - {selectedData.company.state}</span>
                     </div>
                  </div>
               </div>
@@ -187,8 +251,26 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+              {selectedData.company.status === CompanyStatus.PENDING && (
+                <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="text-orange-500" />
+                    <div>
+                      <h4 className="font-bold text-orange-800">Cadastro Pendente</h4>
+                      <p className="text-sm text-orange-700">Esta empresa aguarda liberação para acessar o sistema.</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleCompanyAuthorization(selectedData.company.id, CompanyStatus.ACTIVE)}
+                    className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700"
+                  >
+                    Autorizar Acesso
+                  </button>
+                </div>
+              )}
+
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800">Documentação</h3>
+                <h3 className="text-lg font-semibold text-gray-800">Documentação Enviada</h3>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -205,7 +287,7 @@ export const AdminDashboard: React.FC = () => {
                     {selectedDocs.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
-                          Nenhum documento cadastrado.
+                          Nenhum documento enviado.
                         </td>
                       </tr>
                     ) : (
@@ -222,7 +304,7 @@ export const AdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                                <Badge status={doc.status} />
+                                <Badge status={doc.status} context="document" />
                                 {doc.status === DocumentStatus.REJECTED && (
                                     <div className="text-red-500 cursor-help" title={doc.rejectionReason}>
                                         <AlertCircle size={16} />

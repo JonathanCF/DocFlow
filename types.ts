@@ -14,6 +14,12 @@ export enum DocumentStatus {
   REJECTED = 'REJECTED' // Reprovado
 }
 
+export enum CompanyStatus {
+  PENDING = 'PENDING', // Aguardando aprovação de cadastro
+  ACTIVE = 'ACTIVE',   // Cadastro aprovado, pode logar
+  REJECTED = 'REJECTED' // Cadastro recusado
+}
+
 export interface Company {
   id: string;
   cnpj: string;
@@ -27,6 +33,7 @@ export interface Company {
   city: string;
   state: string;
   phone: string;
+  status: CompanyStatus;
   createdAt?: string;
 }
 
@@ -51,7 +58,7 @@ export interface Document {
 }
 
 // DTOs (Data Transfer Objects) for creation
-export interface CreateCompanyDTO extends Omit<Company, 'id' | 'createdAt'> {}
+export interface CreateCompanyDTO extends Omit<Company, 'id' | 'createdAt' | 'status'> {}
 export interface CreateUserDTO extends Omit<User, 'id' | 'companyId' | 'role'> {}
 
 export interface AppState {

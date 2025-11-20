@@ -14,9 +14,9 @@ export const Login: React.FC<LoginProps> = ({ setView }) => {
 
   const handleLogin = async (email: string, role: UserRole) => {
     setError('');
-    const success = await login(email, role);
-    if (!success) {
-      setError('Usuário não encontrado. (Dica: Cadastre uma empresa primeiro ou use admin@docflow.com)');
+    const result = await login(email, role);
+    if (!result.success) {
+      setError(result.error || 'Erro ao tentar login.');
     }
   };
 
@@ -33,7 +33,7 @@ export const Login: React.FC<LoginProps> = ({ setView }) => {
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center gap-2">
-            <AlertCircle size={16} /> {error}
+            <AlertCircle size={16} className="shrink-0" /> <span>{error}</span>
           </div>
         )}
 
@@ -84,6 +84,6 @@ export const Login: React.FC<LoginProps> = ({ setView }) => {
 };
 
 // Helper for the error icon inside the component
-const AlertCircle = ({ size }: { size: number }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+const AlertCircle = ({ size, className }: { size: number, className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
 );

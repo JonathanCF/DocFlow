@@ -1,4 +1,4 @@
-import { User, Company, Document, UserRole, DocumentStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
+import { User, Company, Document, UserRole, DocumentStatus, CompanyStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
 
 /**
  * MOCK BACKEND SERVICE
@@ -44,12 +44,39 @@ initializeDB();
 export const api = {
   
   auth: {
-    login: async (email: string, role: UserRole): Promise<User | null> => {
+    // Returns object with user if successful, or error message string if failed
+    login: async (email: string, role: UserRole): Promise<{ user: User | null, error?: string }> => {
       await delay(DELAY_MS);
       const users: User[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-      // Simple logic: match email and role
+      
+      // 1. Find User
       const user = users.find(u => u.email === email && u.role === role);
-      return user || null;
+      
+      if (!user) {
+        return { user: null, error: 'Usuário não encontrado.' };
+      }
+
+      // 2. If Admin, bypass company check
+      if (user.role === UserRole.ADMIN) {
+        return { user };
+      }
+
+      // 3. If Supplier, check Company Status
+      if (user.companyId) {
+        const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
+        const company = companies.find(c => c.id === user.companyId);
+        
+        if (company) {
+          if (company.status === CompanyStatus.PENDING) {
+            return { user: null, error: 'Seu cadastro está em análise. Aguarde a liberação do administrador.' };
+          }
+          if (company.status === CompanyStatus.REJECTED) {
+            return { user: null, error: 'Seu cadastro foi recusado. Entre em contato com o suporte.' };
+          }
+        }
+      }
+
+      return { user };
     },
 
     registerSupplier: async (companyData: CreateCompanyDTO, userData: CreateUserDTO): Promise<User> => {
@@ -62,6 +89,7 @@ export const api = {
       const newCompany: Company = {
         ...companyData,
         id: crypto.randomUUID(),
+        status: CompanyStatus.PENDING, // Default to PENDING
         createdAt: new Date().toISOString()
       };
 
@@ -149,6 +177,17 @@ export const api = {
         const responsible = users.find(u => u.companyId === comp.id) || users[0]; // Fallback
         return { company: comp, responsible };
       });
+    },
+
+    updateStatus: async (companyId: string, status: CompanyStatus): Promise<void> => {
+      await delay(DELAY_MS);
+      const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
+      const index = companies.findIndex(c => c.id === companyId);
+      
+      if (index !== -1) {
+        companies[index].status = status;
+        localStorage.setItem(DB_KEYS.COMPANIES, JSON.stringify(companies));
+      }
     }
   }
 };

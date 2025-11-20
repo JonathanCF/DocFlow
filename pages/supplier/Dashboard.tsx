@@ -110,7 +110,7 @@ export const SupplierDashboard: React.FC = () => {
                       {new Date(doc.uploadedAt).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge status={doc.status} />
+                      <Badge status={doc.status} context="document" />
                     </td>
                     <td className="px-6 py-4">
                       {doc.status === DocumentStatus.REJECTED && (
