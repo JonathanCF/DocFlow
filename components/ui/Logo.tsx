@@ -8,31 +8,61 @@ interface LogoProps {
 export const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
   
   const sizeClasses = {
-    sm: { ovalW: 'w-10', ovalH: 'h-6', text: 'text-[10px]', title: 'text-sm', sub: 'text-xs' },
-    md: { ovalW: 'w-14', ovalH: 'h-9', text: 'text-base', title: 'text-xl', sub: 'text-base' },
-    lg: { ovalW: 'w-20', ovalH: 'h-12', text: 'text-xl', title: 'text-2xl', sub: 'text-xl' },
+    sm: 'h-8',
+    md: 'h-12',
+    lg: 'h-20',
   };
 
-  const s = sizeClasses[size];
-
   return (
-    <div className={`flex items-center gap-3 select-none ${className}`}>
-      {/* AE Oval Icon */}
-      <div className={`relative ${s.ovalW} ${s.ovalH} bg-primary-500 rounded-[50%] transform -skew-x-12 flex items-center justify-center shadow-sm shrink-0`}>
-        <span className={`text-white font-bold italic transform skew-x-12 tracking-tighter leading-none ${s.text} font-sans`}>
-          AE
-        </span>
-      </div>
+    <svg 
+      viewBox="0 0 380 100" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className={`${sizeClasses[size]} w-auto ${className}`}
+      aria-label="Aurora EADI Logo"
+    >
+      {/* Background Oval - Rotated slightly for dynamic feel */}
+      <ellipse cx="55" cy="50" rx="52" ry="42" fill="#f97316" transform="rotate(-8 55 50)" />
       
-      {/* Text Brand */}
-      <div className="flex flex-col justify-center leading-none">
-        <span className={`text-gray-900 font-extrabold tracking-wide ${s.title} italic`}>
-          AURORA
-        </span>
-        <span className={`text-gray-900 font-bold tracking-widest ${s.sub} italic`}>
-          EADI
-        </span>
-      </div>
-    </div>
+      {/* AE Letters */}
+      <text 
+        x="55" 
+        y="73" 
+        fontFamily="Arial, sans-serif" 
+        fontWeight="900" 
+        fontSize="65" 
+        fill="white" 
+        textAnchor="middle"
+        fontStyle="italic"
+        letterSpacing="-5"
+      >
+        AE
+      </text>
+
+      {/* Text: AURORA EADI */}
+      <text 
+        x="120" 
+        y="48" 
+        fontFamily="sans-serif" 
+        fontWeight="900" 
+        fontSize="36" 
+        fill="#333333"
+        letterSpacing="-0.5"
+      >
+        AURORA EADI
+      </text>
+
+      {/* Text: Manaus */}
+      <text 
+        x="120" 
+        y="82" 
+        fontFamily="sans-serif" 
+        fontWeight="500" 
+        fontSize="30" 
+        fill="#555555"
+      >
+        Manaus
+      </text>
+    </svg>
   );
 };
