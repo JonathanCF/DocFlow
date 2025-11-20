@@ -1,3 +1,4 @@
+
 import { User, Company, Document, UserRole, DocumentStatus, CompanyStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
 
 /**
@@ -29,10 +30,39 @@ const initializeDB = () => {
       id: 'admin-uuid',
       name: 'Admin Master',
       email: 'admin@docflow.com',
-      role: UserRole.ADMIN
+      role: UserRole.ADMIN,
+      password: '123456' // Default password
     };
-    localStorage.setItem(DB_KEYS.USERS, JSON.stringify([admin]));
-    localStorage.setItem(DB_KEYS.COMPANIES, JSON.stringify([]));
+    
+    // Create demo supplier user for existing company
+    const demoUser: User = {
+      id: 'supplier-demo-uuid',
+      name: 'João Silva',
+      email: 'joao@tech.com',
+      role: UserRole.SUPPLIER,
+      companyId: 'demo-company-id',
+      password: '123456'
+    };
+
+    // Create demo company
+    const demoCompany: Company = {
+        id: 'demo-company-id',
+        cnpj: '12.345.678/0001-99',
+        fantasyName: 'Tech Solutions Ltda',
+        socialReason: 'Tech Solutions Comércio e Serviços Ltda',
+        zipCode: '69000-000',
+        address: 'Av. Torquato Tapajós',
+        number: '123',
+        neighborhood: 'Flores',
+        city: 'Manaus',
+        state: 'AM',
+        phone: '(92) 99999-9999',
+        status: CompanyStatus.ACTIVE,
+        createdAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify([admin, demoUser]));
+    localStorage.setItem(DB_KEYS.COMPANIES, JSON.stringify([demoCompany]));
     localStorage.setItem(DB_KEYS.DOCUMENTS, JSON.stringify([]));
   }
 };
@@ -45,23 +75,28 @@ export const api = {
   
   auth: {
     // Returns object with user if successful, or error message string if failed
-    login: async (email: string, role: UserRole): Promise<{ user: User | null, error?: string }> => {
+    login: async (email: string, password: string, role: UserRole): Promise<{ user: User | null, error?: string }> => {
       await delay(DELAY_MS);
       const users: User[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
       
-      // 1. Find User
+      // 1. Find User by email and role
       const user = users.find(u => u.email === email && u.role === role);
       
       if (!user) {
         return { user: null, error: 'Usuário não encontrado.' };
       }
 
-      // 2. If Admin, bypass company check
+      // 2. Verify Password (In real app: bcrypt.compare)
+      if (user.password && user.password !== password) {
+        return { user: null, error: 'Senha incorreta.' };
+      }
+
+      // 3. If Admin, bypass company check
       if (user.role === UserRole.ADMIN) {
         return { user };
       }
 
-      // 3. If Supplier, check Company Status
+      // 4. If Supplier, check Company Status
       if (user.companyId) {
         const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
         const company = companies.find(c => c.id === user.companyId);
@@ -85,6 +120,11 @@ export const api = {
       const companies: Company[] = JSON.parse(localStorage.getItem(DB_KEYS.COMPANIES) || '[]');
       const users: User[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
 
+      // Check if email already exists
+      if (users.some(u => u.email === userData.email)) {
+        throw new Error("Email já cadastrado.");
+      }
+
       // 1. Create Company (Simulating Prisma.company.create)
       const newCompany: Company = {
         ...companyData,
@@ -98,7 +138,8 @@ export const api = {
         ...userData,
         id: crypto.randomUUID(),
         role: UserRole.SUPPLIER,
-        companyId: newCompany.id
+        companyId: newCompany.id,
+        password: userData.password // Storing password
       };
 
       // Save to "DB"

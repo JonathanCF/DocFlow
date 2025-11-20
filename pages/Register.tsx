@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ArrowLeft, Building2, User as UserIcon, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Building2, User as UserIcon, CheckCircle, Lock } from 'lucide-react';
 
 export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> = ({ setView }) => {
   const { registerCompany } = useApp();
@@ -11,6 +12,8 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
   // User Data
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Company Data
   const [cnpj, setCnpj] = useState('');
@@ -27,9 +30,14 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      alert("As senhas não conferem.");
+      return;
+    }
+
     await registerCompany(
       { cnpj, fantasyName, socialReason, zipCode: cep, address, number, complement, neighborhood, city, state, phone },
-      { name: userName, email: userEmail }
+      { name: userName, email: userEmail, password }
     );
     setIsSuccess(true);
   };
@@ -88,7 +96,7 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
 
             {step === 1 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Dados do Usuário</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Dados do Usuário e Senha</h3>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
                   <input 
@@ -111,11 +119,49 @@ export const Register: React.FC<{ setView: (v: 'login' | 'register') => void }> 
                     placeholder="seu@email.com"
                   />
                 </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input 
+                        required
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                        placeholder="********"
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Senha</label>
+                     <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input 
+                        required
+                        type="password" 
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 outline-none transition ${
+                          confirmPassword && password !== confirmPassword 
+                            ? 'border-red-300 focus:ring-red-200' 
+                            : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'
+                        }`}
+                        placeholder="********"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex justify-end pt-4">
                   <button
                     type="button"
+                    disabled={!password || password !== confirmPassword || !userEmail || !userName}
                     onClick={() => setStep(2)}
-                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors"
+                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Próximo
                   </button>

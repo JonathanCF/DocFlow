@@ -1,3 +1,4 @@
+
 /**
  * Application Types
  * Aligned with Prisma Schema definitions
@@ -43,6 +44,7 @@ export interface User {
   email: string;
   role: UserRole;
   companyId?: string;
+  password?: string; // Adicionado para autenticação
 }
 
 export interface Document {
@@ -59,7 +61,9 @@ export interface Document {
 
 // DTOs (Data Transfer Objects) for creation
 export interface CreateCompanyDTO extends Omit<Company, 'id' | 'createdAt' | 'status'> {}
-export interface CreateUserDTO extends Omit<User, 'id' | 'companyId' | 'role'> {}
+export interface CreateUserDTO extends Omit<User, 'id' | 'companyId' | 'role'> {
+  password?: string;
+}
 
 export interface AppState {
   currentUser: User | null;

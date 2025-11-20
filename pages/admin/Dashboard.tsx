@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../../components/ui/Badge';
 import { DocumentStatus, Document, Company, User, CompanyStatus } from '../../types';
-import { Search, Eye, Check, X, FileText, Download, Building2, User as UserIcon, AlertCircle, Users, UserCheck, Clock } from 'lucide-react';
+import { Search, Eye, Check, X, FileText, Download, Building2, User as UserIcon, AlertCircle, Users, UserCheck, Clock, Loader2 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const { suppliers, documents, updateDocumentStatus, updateCompanyStatus } = useApp();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   
   // Rejection State
   const [rejectingDoc, setRejectingDoc] = useState<Document | null>(null);
@@ -56,9 +57,19 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleCompanyAuthorization = async (companyId: string, status: CompanyStatus) => {
-    const action = status === CompanyStatus.ACTIVE ? 'Autorizar' : 'Bloquear';
-    if (window.confirm(`Deseja realmente ${action} o acesso desta empresa?`)) {
+    // Only ask for confirmation if REJECTING/BLOCKING. Approving is usually safe and positive.
+    if (status === CompanyStatus.REJECTED && !window.confirm(`Deseja realmente bloquear o acesso desta empresa?`)) {
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
       await updateCompanyStatus(companyId, status);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao atualizar status da empresa.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -166,23 +177,25 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <Badge status={company.status} context="company" />
                         {company.status === CompanyStatus.PENDING && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-2">
                             <button 
                               title="Autorizar Acesso"
+                              disabled={isUpdating}
                               onClick={(e) => { e.stopPropagation(); handleCompanyAuthorization(company.id, CompanyStatus.ACTIVE); }}
-                              className="p-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition"
+                              className="p-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 hover:shadow-md transition-all disabled:opacity-50"
                             >
-                              <Check size={14} />
+                              <Check size={16} />
                             </button>
                             <button 
                               title="Recusar Acesso"
+                              disabled={isUpdating}
                               onClick={(e) => { e.stopPropagation(); handleCompanyAuthorization(company.id, CompanyStatus.REJECTED); }}
-                              className="p-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                              className="p-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 hover:shadow-md transition-all disabled:opacity-50"
                             >
-                              <X size={14} />
+                              <X size={16} />
                             </button>
                           </div>
                         )}
@@ -262,8 +275,10 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                   <button 
                     onClick={() => handleCompanyAuthorization(selectedData.company.id, CompanyStatus.ACTIVE)}
-                    className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700"
+                    disabled={isUpdating}
+                    className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center gap-2"
                   >
+                    {isUpdating ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
                     Autorizar Acesso
                   </button>
                 </div>

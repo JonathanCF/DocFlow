@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, Company, Document, UserRole, DocumentStatus, CompanyStatus, CreateCompanyDTO, CreateUserDTO } from '../types';
 import { api } from '../services/api';
@@ -10,7 +11,7 @@ interface AppContextType {
   isLoading: boolean;
   
   // Auth Actions
-  login: (email: string, role: UserRole) => Promise<{ success: boolean, error?: string }>;
+  login: (email: string, password: string, role: UserRole) => Promise<{ success: boolean, error?: string }>;
   logout: () => void;
   registerCompany: (company: CreateCompanyDTO, user: CreateUserDTO) => Promise<void>;
   
@@ -71,10 +72,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Actions ---
 
-  const login = async (email: string, role: UserRole) => {
+  const login = async (email: string, password: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      const response = await api.auth.login(email, role);
+      const response = await api.auth.login(email, password, role);
       if (response.user) {
         setCurrentUser(response.user);
         return { success: true };
